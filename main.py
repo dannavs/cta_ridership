@@ -10,6 +10,8 @@
 import pandas as pd
 import os
 import logging
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Button
 
 
 
@@ -160,7 +162,57 @@ for year in df['year'].unique():
             })
 monthly_report_df = pd.DataFrame(monthly_reports)
 
-# Split the original dataframe into the five individual years (2020 - 2024)
+# Create monthly ridership data for plotting
+monthly_ridership = df.groupby(['year', 'month'])[['bus', 'rail_boardings', 'total_rides']].sum().reset_index()
+monthly_ridership['year_month'] = monthly_ridership['year'].astype(str) + '-' + monthly_ridership['month'].astype(str).str.zfill(2)
+
+# Interactive dashboard with year selector
+unique_years = sorted(monthly_ridership['year'].unique())
+current_year = 2020
+
+def update_plot(year):
+    ax.clear()
+    year_data = monthly_ridership[monthly_ridership['year'] == year].sort_values('month')
+    x = range(len(year_data))
+    bar_width = 0.25
+    ax.bar([i - bar_width for i in x], year_data['total_rides'], width=bar_width, color='black', label='Total Ridership')
+    ax.bar(x, year_data['bus'], width=bar_width, color='darkred', label='Bus Ridership')
+    ax.bar([i + bar_width for i in x], year_data['rail_boardings'], width=bar_width, color='darkblue', label='Train Ridership')
+    ax.set_xticks(x)
+    ax.set_xticklabels([f"{int(m)}" for m in year_data['month']], rotation=45, ha='right')
+    ax.set_ylabel('Total Ridership')
+    ax.set_title(f'Monthly CTA Ridership for {year}: Total, Bus, and Train')
+    ax.legend()
+    plt.draw()
+
+fig, ax = plt.subplots(figsize=(14, 7))
+update_plot(current_year)
+
+# Add navigation buttons
+axprev = plt.axes([0.7, 0.05, 0.1, 0.075])
+axnext = plt.axes([0.81, 0.05, 0.1, 0.075])
+bprev = Button(axprev, 'Previous')
+bnext = Button(axnext, 'Next')
+
+def prev(event):
+    global current_year
+    idx = unique_years.index(current_year)
+    if idx > 0:
+        current_year = unique_years[idx - 1]
+        update_plot(current_year)
+
+def next(event):
+    global current_year
+    idx = unique_years.index(current_year)
+    if idx < len(unique_years) - 1:
+        current_year = unique_years[idx + 1]
+        update_plot(current_year)
+
+bprev.on_clicked(prev)
+bnext.on_clicked(next)
+
+plt.tight_layout()
+plt.show()
 year_2020 = df[df['year'] == 2020]
 year_2021 = df[df['year'] == 2021]
 year_2022 = df[df['year'] == 2022]
